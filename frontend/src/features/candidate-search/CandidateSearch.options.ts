@@ -1,0 +1,58 @@
+export const allCitiesList = [
+  'Ahmedabad',
+  'Bengaluru',
+  'Chennai',
+  'Delhi',
+  'Gurugram',
+  'Hyderabad',
+  'Mumbai',
+  'Pune',
+  'Kolkata',
+  'Noida',
+  'Austin',
+  'San Francisco',
+  'New York',
+  'London',
+  'Dubai',
+  'Remote',
+];
+
+export const industrySubCategories: Record<string, string[]> = {
+  Software: [
+    'Select All',
+    'Apps',
+    'Retail Technology',
+    'Enterprise Applications',
+    'Text Analytics',
+    'PaaS',
+  ],
+  'Media and Entertainment': [
+    'Select All',
+    'Digital Media',
+    'Gaming',
+    'Broadcasting',
+    'Publishing',
+  ],
+  'Tech Hardware': [
+    'Select All',
+    'Semiconductors',
+    'Embedded Systems',
+    'IoT Devices',
+    'Hardware Design',
+  ],
+  'Banking / Financial Services': [
+    'Select All',
+    'Fintech',
+    'Investment Banking',
+    'Retail Banking',
+    'Risk & Compliance',
+  ],
+  'Information Technology': [
+    'Select All',
+    'IT Services',
+    'Software Development',
+    'Data Analytics',
+    'Cybersecurity',
+  ],
+  Other: ['Select All', 'Consulting', 'Education', 'Healthcare', 'E-commerce'],
+};

@@ -1,0 +1,1083 @@
+import { ArrowLeft, Info, MapPin, Plus, Trash2, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { allCitiesList } from '../../features/jobs/CreateJob.options';
+import { useRecruiterStore } from '../../store/recruiterStore';
+import { EmploymentType, ExperienceLevel, WorkMode } from '../../types/recruiter.types';
+
+export const CreateJob: React.FC = () => {
+  const navigate = useNavigate();
+  const { organizationId = 'clyptus' } = useParams<{ organizationId: string }>();
+  const createJob = useRecruiterStore((state) => state.createJob);
+  const profile = useRecruiterStore((state) => state.profile);
+
+  // Header & Template Controls
+  const [showRefCode, setShowRefCode] = useState(false);
+  const [refCode, setRefCode] = useState('');
+
+  // Posting details (Left Column)
+  const [jobCategory, setJobCategory] = useState<'Permanent' | 'Contract' | 'Walk-in'>('Permanent');
+  const [employmentType, setEmploymentType] = useState<EmploymentType>('Full-time');
+  const [scheduleMode, setScheduleMode] = useState<'now' | 'date'>('now');
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
+
+  // Walk-in venue details
+  const [venueAddress, setVenueAddress] = useState('');
+  const [walkinStartDate, setWalkinStartDate] = useState('');
+  const [walkinStartTime, setWalkinStartTime] = useState('');
+  const [walkinEndDate, setWalkinEndDate] = useState('');
+  const [walkinEndTime, setWalkinEndTime] = useState('');
+
+  // Main Job Details (Right Column - Starts 100% EMPTY)
+  const [title, setTitle] = useState('');
+  const [expType, setExpType] = useState<'experienced' | 'fresher'>('experienced');
+  const [experienceMin, setExperienceMin] = useState<string>('');
+  const [experienceMax, setExperienceMax] = useState<string>('');
+  const [jobDescription, setJobDescription] = useState('');
+  const [prioritizeWomen, setPrioritizeWomen] = useState(false);
+
+  // Skills & Multi-Location Tag System
+  const [skills, setSkills] = useState<string[]>([]);
+  const [skillInput, setSkillInput] = useState('');
+  const [workMode, setWorkMode] = useState<WorkMode | ''>('');
+  const [jobLocations, setJobLocations] = useState<string[]>([]);
+  const [locationInput, setLocationInput] = useState('');
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+
+  const filteredLocationSuggestions = allCitiesList.filter(
+    (c) =>
+      !jobLocations.includes(c) &&
+      (locationInput.trim() === '' || c.toLowerCase().includes(locationInput.toLowerCase().trim())),
+  );
+
+  // Compensation & Benefits (Starts 100% EMPTY)
+  const [salaryMin, setSalaryMin] = useState<string>('');
+  const [salaryMax, setSalaryMax] = useState<string>('');
+  const [hideSalary] = useState<boolean>(false);
+  const [perksAndBenefits, setPerksAndBenefits] = useState('');
+  const [industry, setIndustry] = useState('');
+  const [functionRole, setFunctionRole] = useState('');
+  const [educationLevel, setEducationLevel] = useState('');
+
+  // Questionnaire (Starts 100% EMPTY)
+  const [enableQuestionnaire, setEnableQuestionnaire] = useState(false);
+  const [screeningQuestions, setScreeningQuestions] = useState<
+    { id: string; question: string; required: boolean }[]
+  >([]);
+
+  // Preview state
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  // Skill Handlers
+  const handleAddSkill = (e: React.KeyboardEvent | React.MouseEvent) => {
+    if ('key' in e && e.key !== 'Enter') return;
+    e.preventDefault();
+    if (skillInput.trim() && !skills.includes(skillInput.trim())) {
+      setSkills([...skills, skillInput.trim()]);
+      setSkillInput('');
+    }
+  };
+
+  const handleRemoveSkill = (skillToRemove: string) => {
+    setSkills(skills.filter((s) => s !== skillToRemove));
+  };
+
+  // Location Handlers (Self-type & Multi-location tags)
+  const handleAddLocationTag = (locToAdd: string) => {
+    const trimmed = locToAdd.trim();
+    if (trimmed && !jobLocations.includes(trimmed)) {
+      setJobLocations([...jobLocations, trimmed]);
+      setLocationInput('');
+    }
+  };
+
+  const handleKeyDownLocation = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (locationInput.trim()) {
+        handleAddLocationTag(locationInput);
+      }
+    }
+  };
+
+  const handleRemoveLocationTag = (locToRemove: string) => {
+    setJobLocations(jobLocations.filter((l) => l !== locToRemove));
+  };
+
+  const handleAddQuestion = () => {
+    setScreeningQuestions([
+      ...screeningQuestions,
+      { id: Date.now().toString(), question: '', required: false },
+    ]);
+  };
+
+  const handleRemoveQuestion = (id: string) => {
+    setScreeningQuestions(screeningQuestions.filter((q) => q.id !== id));
+  };
+
+  const buildJobPayload = (status: 'Published' | 'Draft') => {
+    const minExpNum = Number(experienceMin) || 0;
+    const maxExpNum = Number(experienceMax) || 5;
+    const minSalNum = Number(salaryMin) || 0;
+    const maxSalNum = Number(salaryMax) || 0;
+
+    return {
+      title,
+      department: industry || 'Software Engineering',
+      location: jobLocations.length > 0 ? jobLocations.join(', ') : 'Remote',
+      employmentType,
+      workMode: workMode || 'On-site',
+      experienceLevel: (minExpNum <= 2
+        ? 'Entry-level'
+        : minExpNum >= 7
+          ? 'Senior'
+          : 'Mid-level') as ExperienceLevel,
+      experienceMin: minExpNum,
+      experienceMax: maxExpNum,
+      noticePeriod: '30 Days (Negotiable)',
+      educationLevel: educationLevel || 'Any Graduate',
+      salaryMin: minSalNum,
+      salaryMax: maxSalNum,
+      currency: 'INR',
+      hideSalary,
+      status,
+      deadline: expiryDate || '2026-12-31',
+      openings: 1,
+      assignedRecruiterId: profile.id,
+      assignedRecruiterName: profile.name,
+      summary:
+        jobDescription.substring(0, 300) || `${title} requisition at Clyptus Software Solution.`,
+      responsibilities: jobDescription.split('\n').filter((s) => s.trim().length > 0),
+      requiredSkills: skills,
+      preferredSkills: ['Agile', 'Git', 'CI/CD'],
+      qualifications: [educationLevel, `${minExpNum}-${maxExpNum} years experience`],
+      interviewProcess: [
+        'HR Screening',
+        'Technical Evaluation',
+        'System Design',
+        'Final Managerial',
+      ],
+      screeningQuestions: enableQuestionnaire
+        ? screeningQuestions.filter((q) => q.question.trim().length > 0)
+        : [],
+    };
+  };
+
+  const handleSubmit = (status: 'Published' | 'Draft') => {
+    if (!title.trim()) {
+      alert('Please fill out the Job Title.');
+      return;
+    }
+    const created = createJob(buildJobPayload(status));
+    navigate(`/org/${organizationId}/recruiter/jobs/${created.id}`);
+  };
+
+  return (
+    <div className="space-y-6 max-w-7xl mx-auto pb-24 font-sans text-slate-900 select-none animate-in fade-in duration-200">
+      {/* Sub-Header & Breadcrumb Bar */}
+      <div className="flex items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200/90 shadow-xs">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <div className="text-xs text-slate-500 font-semibold flex items-center gap-1.5">
+              <span
+                className="hover:underline cursor-pointer"
+                onClick={() => navigate(`/org/${organizationId}/recruiter/dashboard`)}
+              >
+                Dashboard
+              </span>
+              <span>›</span>
+              <span className="text-indigo-600 font-bold">Post Job</span>
+            </div>
+            <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">Create Job</h1>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Two-Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column (Sticky / Freezed Posting Details Panel) */}
+        <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-20 lg:self-start z-20">
+          {/* Card 1: Freezed Posting Details */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-sm space-y-4">
+            <h3 className="font-extrabold text-slate-900 text-sm border-b border-slate-100 pb-2">
+              Posting details
+            </h3>
+
+            {/* Segmented Job Type: Permanent / Contract / Walk-in */}
+            <div>
+              <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold text-center">
+                {(['Permanent', 'Contract', 'Walk-in'] as const).map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setJobCategory(cat)}
+                    className={`py-1.5 rounded-lg transition-all cursor-pointer ${
+                      jobCategory === cat
+                        ? 'bg-white text-indigo-700 shadow-2xs border border-slate-200'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Permanent View */}
+            {jobCategory === 'Permanent' && (
+              <>
+                <div className="flex items-center gap-6 pt-1 text-xs font-semibold text-slate-800">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="empType"
+                      checked={employmentType === 'Full-time'}
+                      onChange={() => setEmploymentType('Full-time')}
+                      className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span>Full time</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="empType"
+                      checked={employmentType === 'Part-time'}
+                      onChange={() => setEmploymentType('Part-time')}
+                      className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span>Part time</span>
+                  </label>
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Schedule job post
+                  </label>
+                  <div className="flex items-center gap-6 text-xs font-semibold text-slate-800">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="schedule"
+                        checked={scheduleMode === 'now'}
+                        onChange={() => setScheduleMode('now')}
+                        className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span>Post now</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="schedule"
+                        checked={scheduleMode === 'date'}
+                        onChange={() => setScheduleMode('date')}
+                        className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span>Choose a date</span>
+                    </label>
+                  </div>
+
+                  {scheduleMode === 'date' && (
+                    <div className="pt-1.5 animate-in fade-in duration-150">
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        Select Posting Date
+                      </label>
+                      <input
+                        type="date"
+                        value={scheduleDate}
+                        onChange={(e) => setScheduleDate(e.target.value)}
+                        className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Expiry date</label>
+                  <input
+                    type="date"
+                    value={expiryDate}
+                    onChange={(e) => setExpiryDate(e.target.value)}
+                    className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Contract View */}
+            {jobCategory === 'Contract' && (
+              <>
+                <div className="space-y-2 pt-1">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Schedule job post
+                  </label>
+                  <div className="flex items-center gap-6 text-xs font-semibold text-slate-800">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="scheduleContract"
+                        checked={scheduleMode === 'now'}
+                        onChange={() => setScheduleMode('now')}
+                        className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span>Post now</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="scheduleContract"
+                        checked={scheduleMode === 'date'}
+                        onChange={() => setScheduleMode('date')}
+                        className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span>Choose a date</span>
+                    </label>
+                  </div>
+
+                  {scheduleMode === 'date' && (
+                    <div className="pt-1.5 animate-in fade-in duration-150">
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        Select Posting Date
+                      </label>
+                      <input
+                        type="date"
+                        value={scheduleDate}
+                        onChange={(e) => setScheduleDate(e.target.value)}
+                        className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Expiry date</label>
+                  <input
+                    type="date"
+                    value={expiryDate}
+                    onChange={(e) => setExpiryDate(e.target.value)}
+                    className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Walk-in View */}
+            {jobCategory === 'Walk-in' && (
+              <>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Venue address <span className="text-rose-500">*</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={venueAddress}
+                    onChange={(e) => setVenueAddress(e.target.value)}
+                    placeholder="Write address here"
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500 resize-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Start Date <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={walkinStartDate}
+                      onChange={(e) => setWalkinStartDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Start time <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={walkinStartTime}
+                      onChange={(e) => setWalkinStartTime(e.target.value)}
+                      placeholder="12:00 AM"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      End Date <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={walkinEndDate}
+                      onChange={(e) => setWalkinEndDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      End time <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={walkinEndTime}
+                      onChange={(e) => setWalkinEndTime(e.target.value)}
+                      placeholder="12:00 AM"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="text-[11px] text-slate-500 font-medium leading-tight pt-1">
+                  Note: This is the closing date of the job. The job will be expired once passed
+                  this date
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Right Column (Scrollable Main Job Details) */}
+        <div className="lg:col-span-8 space-y-6">
+          {/* Card 1: Job details */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-5">
+            <h3 className="font-extrabold text-slate-900 text-base border-b border-slate-100 pb-3">
+              Job details
+            </h3>
+
+            {/* Job title & Reference code */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  Job title <span className="text-rose-500">*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowRefCode(!showRefCode)}
+                  className="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add reference code
+                </button>
+              </div>
+
+              <input
+                type="text"
+                required
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Search job title e.g. Senior Frontend Engineer"
+                className="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+
+              {showRefCode && (
+                <div className="mt-2.5">
+                  <input
+                    type="text"
+                    value={refCode}
+                    onChange={(e) => setRefCode(e.target.value)}
+                    placeholder="Enter internal reference / requisition code (e.g. REQ-2026-ENG-08)"
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono text-slate-800"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Experience Section */}
+            <div className="space-y-3">
+              <label className="block text-xs font-bold text-slate-700">
+                Experience <span className="text-rose-500">*</span>
+              </label>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExpType('fresher');
+                    setExperienceMin('0');
+                    setExperienceMax('1');
+                  }}
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border cursor-pointer ${
+                    expType === 'fresher'
+                      ? 'bg-indigo-50 text-indigo-700 border-indigo-300 ring-2 ring-indigo-500/20'
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  Fresher only
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExpType('experienced')}
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border cursor-pointer ${
+                    expType === 'experienced'
+                      ? 'bg-indigo-50 text-indigo-700 border-indigo-300 ring-2 ring-indigo-500/20'
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  Experienced only
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 pt-1">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    Min experience (years) <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={experienceMin}
+                    onChange={(e) => setExperienceMin(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  >
+                    <option value="">Years</option>
+                    {[0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 15].map((y) => (
+                      <option key={y} value={y}>
+                        {y} Years
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    Max experience (years) <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={experienceMax}
+                    onChange={(e) => setExperienceMax(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  >
+                    <option value="">Years</option>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 15, 20].map((y) => (
+                      <option key={y} value={y}>
+                        {y} Years
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Job description Rich Text */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  Job description <span className="text-rose-500">*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setJobDescription('')}
+                  className="text-xs font-bold text-slate-400 hover:text-slate-700 cursor-pointer"
+                >
+                  Clear
+                </button>
+              </div>
+
+              <div className="border border-slate-300 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
+                {/* Formatting Toolbar */}
+                <div className="bg-slate-50 border-b border-slate-200 px-3 py-2 flex items-center gap-3 text-xs font-bold text-slate-700">
+                  <button
+                    type="button"
+                    className="px-2 py-0.5 hover:bg-slate-200 rounded font-serif"
+                  >
+                    B
+                  </button>
+                  <button
+                    type="button"
+                    className="px-2 py-0.5 hover:bg-slate-200 rounded italic font-serif"
+                  >
+                    I
+                  </button>
+                  <button
+                    type="button"
+                    className="px-2 py-0.5 hover:bg-slate-200 rounded underline font-serif"
+                  >
+                    U
+                  </button>
+                  <span className="text-slate-300">|</span>
+                  <button type="button" className="px-2 py-0.5 hover:bg-slate-200 rounded">
+                    • List
+                  </button>
+                  <button type="button" className="px-2 py-0.5 hover:bg-slate-200 rounded">
+                    1. List
+                  </button>
+                  <span className="text-slate-300">|</span>
+                  <select className="bg-transparent font-semibold text-xs text-slate-700 focus:outline-none">
+                    <option>Normal</option>
+                    <option>Heading 1</option>
+                    <option>Heading 2</option>
+                  </select>
+                </div>
+
+                <textarea
+                  rows={7}
+                  required
+                  value={jobDescription}
+                  onChange={(e) => setJobDescription(e.target.value)}
+                  placeholder="Outlines the roles and responsibilities the candidate will perform in this role."
+                  className="w-full p-4 text-xs font-medium text-slate-800 border-none focus:outline-none resize-y"
+                />
+              </div>
+            </div>
+
+            {/* Diversity Priority Checkbox */}
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
+              <label className="flex items-center gap-2.5 font-bold text-slate-800 cursor-pointer">
+                <span>This job will prioritize:</span>
+                <input
+                  type="checkbox"
+                  checked={prioritizeWomen}
+                  onChange={(e) => setPrioritizeWomen(e.target.checked)}
+                  className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+                />
+                <span>Women</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Card 2: Skills & Multi-Location Self-Type Job Location */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-5">
+            {/* Skills */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Skills <span className="text-rose-500">*</span>
+              </label>
+              <div className="flex flex-wrap items-center gap-2 p-2.5 border border-slate-300 rounded-xl focus-within:ring-2 focus-within:ring-indigo-500 bg-white">
+                {skills.map((skill) => (
+                  <span
+                    key={skill}
+                    className="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-700 border border-indigo-100 text-xs font-bold px-3 py-1 rounded-full"
+                  >
+                    {skill}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveSkill(skill)}
+                      className="hover:text-rose-600 rounded-full cursor-pointer"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+                <input
+                  type="text"
+                  value={skillInput}
+                  onChange={(e) => setSkillInput(e.target.value)}
+                  onKeyDown={handleAddSkill}
+                  placeholder={
+                    skills.length === 0
+                      ? 'Search by skills e.g., Java, Customer Support'
+                      : 'Add skill...'
+                  }
+                  className="flex-1 min-w-[180px] bg-transparent text-xs font-medium text-slate-900 border-none focus:outline-none py-1"
+                />
+              </div>
+              <div className="text-[11px] text-slate-400 mt-1">Press Enter to add skills tag</div>
+            </div>
+
+            {/* Multi-Location Self-Type Job Location */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Job location <span className="text-rose-500">*</span>
+              </label>
+
+              <div className="space-y-3">
+                <div className="max-w-xs">
+                  <select
+                    value={workMode}
+                    onChange={(e) => setWorkMode(e.target.value as WorkMode)}
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  >
+                    <option value="">Select Work Mode</option>
+                    <option value="On-site">On-site</option>
+                    <option value="Hybrid">Hybrid</option>
+                    <option value="Remote">Remote</option>
+                  </select>
+                </div>
+
+                {/* Multi-Location Tag Chips Input Box */}
+                <div className="relative">
+                  <div className="flex flex-wrap items-center gap-2 p-2.5 border border-slate-300 rounded-xl focus-within:ring-2 focus-within:ring-indigo-500 bg-white min-h-[46px]">
+                    <MapPin className="w-4 h-4 text-slate-400 shrink-0 ml-1" />
+
+                    {jobLocations.map((loc) => (
+                      <span
+                        key={loc}
+                        className="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold px-3 py-1 rounded-full"
+                      >
+                        <span>{loc}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveLocationTag(loc)}
+                          className="hover:text-rose-600 rounded-full cursor-pointer ml-0.5"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+
+                    <input
+                      type="text"
+                      value={locationInput}
+                      onChange={(e) => {
+                        setLocationInput(e.target.value);
+                        setShowLocationDropdown(true);
+                      }}
+                      onKeyDown={handleKeyDownLocation}
+                      onFocus={() => setShowLocationDropdown(true)}
+                      placeholder={
+                        jobLocations.length === 0
+                          ? 'Self type job location e.g. Bangalore, Hyderabad and press Enter'
+                          : 'Add another location...'
+                      }
+                      className="flex-1 min-w-[220px] bg-transparent text-xs font-medium text-slate-900 border-none focus:outline-none py-1"
+                    />
+
+                    {jobLocations.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setJobLocations([])}
+                        className="p-1 text-slate-400 hover:text-slate-700 rounded-lg shrink-0 cursor-pointer ml-auto"
+                        title="Clear all locations"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Location Suggestions Dropdown Menu */}
+                  {showLocationDropdown && (
+                    <div className="absolute left-0 right-0 mt-1.5 bg-white border border-slate-300 rounded-xl shadow-xl p-2 z-50 max-h-56 overflow-y-auto animate-in fade-in zoom-in duration-100">
+                      <div className="text-[11px] font-bold text-slate-400 px-3 py-1 border-b border-slate-100 mb-1">
+                        {locationInput.trim()
+                          ? `Matching Suggestions for "${locationInput}"`
+                          : 'Popular Locations'}
+                      </div>
+                      {filteredLocationSuggestions.length === 0 ? (
+                        <div className="text-xs text-slate-500 p-3">
+                          No pre-listed location found. Press Enter to add "{locationInput}"
+                        </div>
+                      ) : (
+                        filteredLocationSuggestions.map((city) => (
+                          <div
+                            key={city}
+                            onClick={() => {
+                              handleAddLocationTag(city);
+                              setShowLocationDropdown(false);
+                            }}
+                            className="flex items-center justify-between text-xs font-semibold text-slate-800 hover:bg-slate-100 px-3 py-2 rounded-lg cursor-pointer transition-colors"
+                          >
+                            <div className="flex items-center gap-2">
+                              <MapPin className="w-3.5 h-3.5 text-indigo-500" />
+                              <span>{city}</span>
+                            </div>
+                            <span className="text-[10px] text-indigo-600 font-bold">+ Select</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="text-[11px] text-slate-400">
+                  Type any location or choose from suggestions underneath to add multiple locations
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: Salary & Classification (Starts 100% EMPTY) */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-5">
+            {/* Min & Max Salary */}
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Min salary (Annually ₹) <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={salaryMin}
+                    onChange={(e) => setSalaryMin(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  >
+                    <option value="">Lacs</option>
+                    <option value="300000">₹ 3 Lakhs</option>
+                    <option value="500000">₹ 5 Lakhs</option>
+                    <option value="800000">₹ 8 Lakhs</option>
+                    <option value="1200000">₹ 12 Lakhs</option>
+                    <option value="1800000">₹ 18 Lakhs</option>
+                    <option value="2500000">₹ 25 Lakhs</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Max salary (Annually ₹) <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={salaryMax}
+                    onChange={(e) => setSalaryMax(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  >
+                    <option value="">Lacs</option>
+                    <option value="600000">₹ 6 Lakhs</option>
+                    <option value="1000000">₹ 10 Lakhs</option>
+                    <option value="1500000">₹ 15 Lakhs</option>
+                    <option value="2200000">₹ 22 Lakhs</option>
+                    <option value="3000000">₹ 30 Lakhs</option>
+                    <option value="5000000">₹ 50 Lakhs+</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Perks & Benefits */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Perks and benefits <Info className="w-3.5 h-3.5 text-slate-400 inline" />
+              </label>
+              <input
+                type="text"
+                value={perksAndBenefits}
+                onChange={(e) => setPerksAndBenefits(e.target.value)}
+                placeholder="Eg. Cab Services, Paternity leave, Health Insurance, Annual Bonus"
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            {/* Industry */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Industry</label>
+              <select
+                value={industry}
+                onChange={(e) => setIndustry(e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+              >
+                <option value="">Select Industry</option>
+                <option value="IT Software & Services">IT Software & Services</option>
+                <option value="Engineering & Construction">Engineering & Construction</option>
+                <option value="Financial Services & Fintech">Financial Services & Fintech</option>
+                <option value="E-Commerce & Internet">E-Commerce & Internet</option>
+                <option value="Healthcare & Pharma">Healthcare & Pharma</option>
+              </select>
+            </div>
+
+            {/* Functions & Roles */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Functions and roles
+              </label>
+              <select
+                value={functionRole}
+                onChange={(e) => setFunctionRole(e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+              >
+                <option value="">Select Function & Role</option>
+                <option value="Software Engineering - Frontend">
+                  Software Engineering - Frontend
+                </option>
+                <option value="Software Engineering - Backend">
+                  Software Engineering - Backend
+                </option>
+                <option value="Software Engineering - Full Stack">
+                  Software Engineering - Full Stack
+                </option>
+                <option value="DevOps & Cloud Architecture">DevOps & Cloud Architecture</option>
+                <option value="Product Management">Product Management</option>
+              </select>
+            </div>
+
+            {/* Education */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Education</label>
+              <select
+                value={educationLevel}
+                onChange={(e) => setEducationLevel(e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+              >
+                <option value="">Select Education</option>
+                <option value="B.E / B.Tech (CS / IT / ECE)">B.E / B.Tech (CS / IT / ECE)</option>
+                <option value="M.Tech / MS in CS">M.Tech / MS in CS</option>
+                <option value="MCA / B.Sc Computer Science">MCA / B.Sc Computer Science</option>
+                <option value="Any Graduate">Any Graduate</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Card 4: Questionnaire */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-4">
+            <div>
+              <h3 className="font-extrabold text-slate-900 text-sm mb-3">Questionnaire</h3>
+              <label className="flex items-center gap-2 font-bold text-xs text-slate-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={enableQuestionnaire}
+                  onChange={(e) => setEnableQuestionnaire(e.target.checked)}
+                  className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+                />
+                <span>Add questionnaire to this job posting</span>
+              </label>
+
+              {enableQuestionnaire && (
+                <div className="mt-4 space-y-3">
+                  {screeningQuestions.map((q, idx) => (
+                    <div key={q.id} className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-400">{idx + 1}.</span>
+                      <input
+                        type="text"
+                        value={q.question}
+                        onChange={(e) => {
+                          const updated = [...screeningQuestions];
+                          updated[idx].question = e.target.value;
+                          setScreeningQuestions(updated);
+                        }}
+                        placeholder="Enter question for applicants"
+                        className="flex-1 px-3 py-1.5 border border-slate-300 rounded-xl text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveQuestion(q.id)}
+                        className="p-1 text-slate-400 hover:text-rose-600 rounded"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={handleAddQuestion}
+                    className="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Question
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Sticky Bottom Action Bar */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 p-4 shadow-xl z-30 flex items-center justify-end px-6 lg:px-12">
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => handleSubmit('Draft')}
+            className="text-xs font-extrabold text-slate-700 hover:text-indigo-600 hover:underline cursor-pointer"
+          >
+            Save as draft
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsPreviewOpen(true)}
+            className="px-5 py-2.5 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
+          >
+            Preview job post
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleSubmit('Published')}
+            className="px-7 py-2.5 bg-[#4F46E5] hover:bg-[#4338CA] text-white rounded-xl text-xs font-extrabold shadow-md transition-all cursor-pointer"
+          >
+            Post Job
+          </button>
+        </div>
+      </div>
+
+      {/* Job Preview Modal */}
+      {isPreviewOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 space-y-4 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <span className="text-[10px] font-extrabold uppercase bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-100">
+                  JOB PREVIEW
+                </span>
+                <h2 className="text-lg font-extrabold text-slate-900 mt-1">
+                  {title || 'Untitled Job Post'}
+                </h2>
+              </div>
+              <button
+                onClick={() => setIsPreviewOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs text-slate-700">
+              <div className="flex flex-wrap items-center gap-4 text-slate-500 font-semibold">
+                <span>📍 {jobLocations.join(', ') || 'Location Not Specified'}</span>
+                <span>•</span>
+                <span>
+                  💼 {employmentType} ({workMode || 'On-site'})
+                </span>
+                <span>•</span>
+                <span>
+                  ⏱️ {experienceMin || 0}-{experienceMax || 5} Years Exp
+                </span>
+                <span>•</span>
+                <span>
+                  💰{' '}
+                  {hideSalary
+                    ? 'Confidential'
+                    : salaryMin && salaryMax
+                      ? `₹${(Number(salaryMin) / 100000).toFixed(1)}L - ₹${(Number(salaryMax) / 100000).toFixed(1)}L PA`
+                      : 'Not Specified'}
+                </span>
+              </div>
+
+              <div className="pt-2 border-t border-slate-100">
+                <h4 className="font-bold text-slate-900 mb-1">Required Skills:</h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {skills.length === 0 ? (
+                    <span className="text-slate-400 font-normal">No skills added</span>
+                  ) : (
+                    skills.map((s) => (
+                      <span
+                        key={s}
+                        className="px-2.5 py-0.5 bg-slate-100 rounded-full text-slate-800 font-semibold"
+                      >
+                        {s}
+                      </span>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-slate-100">
+                <h4 className="font-bold text-slate-900 mb-1">Job Description:</h4>
+                <p className="whitespace-pre-line text-slate-600 leading-relaxed">
+                  {jobDescription || 'No description provided.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
+              <button
+                onClick={() => setIsPreviewOpen(false)}
+                className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50"
+              >
+                Close Preview
+              </button>
+              <button
+                onClick={() => {
+                  setIsPreviewOpen(false);
+                  handleSubmit('Published');
+                }}
+                className="px-5 py-2 bg-[#4F46E5] text-white rounded-xl text-xs font-bold hover:bg-[#4338CA]"
+              >
+                Confirm & Post Job
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

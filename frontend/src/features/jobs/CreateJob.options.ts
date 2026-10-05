@@ -1,0 +1,17 @@
+export const allCitiesList = [
+  'Bangalore, Karnataka',
+  'Hyderabad, Telangana',
+  'Pune, Maharashtra',
+  'Mumbai, Maharashtra',
+  'Delhi NCR / Gurgaon',
+  'Chennai, Tamil Nadu',
+  'Kolkata, West Bengal',
+  'Ahmedabad, Gujarat',
+  'Noida, Uttar Pradesh',
+  'Remote, India',
+  'Austin, Texas, USA',
+  'San Francisco, California, USA',
+  'New York, USA',
+  'London, UK',
+  'Dubai, UAE',
+];
